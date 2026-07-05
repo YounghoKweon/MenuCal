@@ -205,24 +205,44 @@ struct SettingsView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             } else {
-                ForEach(cityStore.cities) { city in
-                    HStack(spacing: 6) {
-                        Text(city.name).font(.system(size: 12))
-                        Spacer()
-                        Text(city.timeZoneID)
-                            .font(.system(size: 9))
-                            .foregroundStyle(.tertiary)
-                        Button {
-                            cityStore.remove(city)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.system(size: 10))
+                // 드래그 앤 드롭으로 순서 변경 (List + onMove)
+                List {
+                    ForEach(cityStore.cities) { city in
+                        HStack(spacing: 6) {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.quaternary)
+                            Text(city.name).font(.system(size: 12))
+                            Spacer()
+                            Text(city.timeZoneID)
+                                .font(.system(size: 9))
                                 .foregroundStyle(.tertiary)
+                            Button {
+                                cityStore.remove(city)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("삭제")
                         }
-                        .buttonStyle(.plain)
-                        .help("삭제")
+                        .listRowInsets(EdgeInsets(top: 2, leading: 2, bottom: 2, trailing: 2))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    }
+                    .onMove { from, to in
+                        cityStore.moveCities(fromOffsets: from, toOffset: to)
                     }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .environment(\.defaultMinListRowHeight, 22)
+                .frame(height: min(CGFloat(cityStore.cities.count) * 24, 168))
+
+                Text("행을 드래그하면 순서를 바꿀 수 있어요")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
     }

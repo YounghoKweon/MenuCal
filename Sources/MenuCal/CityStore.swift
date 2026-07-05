@@ -44,6 +44,11 @@ final class CityStore: ObservableObject {
         cities.removeAll { $0.id == city.id }
     }
 
+    /// 드래그 앤 드롭 순서 변경 (SwiftUI onMove용)
+    func moveCities(fromOffsets source: IndexSet, toOffset destination: Int) {
+        cities.move(fromOffsets: source, toOffset: destination)
+    }
+
     private func save() {
         if let data = try? JSONEncoder().encode(cities) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)
@@ -51,7 +56,9 @@ final class CityStore: ObservableObject {
     }
 
     /// 주요 도시 프리셋 (한국어 이름, tz database 식별자)
+    /// 참고: "UTC"는 knownTimeZoneIdentifiers에 없어서 검색 폴백으로는 안 잡힘 → 프리셋에 직접 포함
     static let presets: [City] = [
+        City(name: "UTC (협정시)", timeZoneID: "UTC"),
         City(name: "서울", timeZoneID: "Asia/Seoul"),
         City(name: "도쿄", timeZoneID: "Asia/Tokyo"),
         City(name: "베이징", timeZoneID: "Asia/Shanghai"),
