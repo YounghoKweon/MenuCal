@@ -46,7 +46,7 @@ enum ClockFormatter {
         menuBarLine2.string(from: date)
     }
 
-    /// 세계시계 행: "14:23"
+    /// 이벤트 시각 표시: "14:23"
     private static let cityTime: DateFormatter = {
         let f = DateFormatter()
         f.locale = koLocale
@@ -54,6 +54,20 @@ enum ClockFormatter {
         f.dateFormat = "HH:mm"
         return f
     }()
+
+    /// 세계시계 행: "14:23:45" (초 포함, 매초 갱신)
+    private static let cityClock: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = koLocale
+        f.calendar = Calendar(identifier: .gregorian)
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
+    static func cityClockString(_ date: Date, timeZone: TimeZone) -> String {
+        cityClock.timeZone = timeZone
+        return cityClock.string(from: date)
+    }
 
     /// 달력 헤더: "2026년 7월"
     private static let monthTitle: DateFormatter = {

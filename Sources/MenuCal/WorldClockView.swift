@@ -43,7 +43,7 @@ struct WorldClockView: View {
             Spacer()
 
             if let tz = city.timeZone {
-                Text(ClockFormatter.cityTimeString(ticker.now, timeZone: tz))
+                Text(ClockFormatter.cityClockString(ticker.now, timeZone: tz))
                     .font(.system(size: 12))
                     .monospacedDigit()
             } else {
