@@ -4,6 +4,9 @@ import SwiftUI
 extension Notification.Name {
     /// 달력에서 ← / → 키로 달 이동 (delta: Int in userInfo)
     static let menuCalMoveMonth = Notification.Name("MenuCalMoveMonth")
+    /// 팝오버가 열릴 때마다 발신 — 달력이 "오늘로 복귀" 정책을 적용하는 트리거
+    /// (지속 호스팅 뷰라 SwiftUI onAppear는 재오픈 시 안 뜬다)
+    static let menuCalPopoverDidOpen = Notification.Name("MenuCalPopoverDidOpen")
 }
 
 /// 두 줄 모드용 메뉴바 라벨 데이터
@@ -239,6 +242,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             // transient 팝오버는 mouseDown에 닫히고 mouseUp 액션이 또 열 수 있음 → 재열림 가드
             guard let button = statusItem.button else { return }
             eventService.refresh() // 열 때 최신 이벤트로
+            // 달력이 "열 때 오늘로 복귀" 정책을 적용하도록 알림 (설정에 따라 무시될 수 있음)
+            NotificationCenter.default.post(name: .menuCalPopoverDidOpen, object: nil)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             NSApp.activate() // 액세서리 앱: 검색 TextField가 키보드 포커스를 받도록
             // 팝오버 창을 key로 만들어 ← / → 등 키 입력을 바로 받도록 한다

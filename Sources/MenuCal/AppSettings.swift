@@ -28,6 +28,11 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(lookaheadDays, forKey: "lookaheadDays") }
     }
 
+    /// 팝오버를 열 때 달력을 항상 오늘 달로 되돌릴지 (false면 마지막으로 보던 달 유지)
+    @Published var calendarOpensToToday: Bool {
+        didSet { UserDefaults.standard.set(calendarOpensToToday, forKey: "calendarOpensToToday") }
+    }
+
     /// 넛지를 마지막으로 확인한 날 ("yyyy-MM-dd"). 자정이 지나면 값이 달라져 넛지가 되살아난다.
     @Published var lastNudgeAckDay: String {
         didSet { UserDefaults.standard.set(lastNudgeAckDay, forKey: "lastNudgeAckDay") }
@@ -40,6 +45,8 @@ final class AppSettings: ObservableObject {
         menuBarFormatLine2 = d.string(forKey: "menuBarFormatLine2") ?? Self.defaultLine2
         let days = d.integer(forKey: "lookaheadDays")
         lookaheadDays = days == 0 ? 7 : days
+        // 미설정 시 기본값 = 항상 오늘 (기존 동작 유지)
+        calendarOpensToToday = d.object(forKey: "calendarOpensToToday") as? Bool ?? true
         lastNudgeAckDay = d.string(forKey: "lastNudgeAckDay") ?? ""
     }
 

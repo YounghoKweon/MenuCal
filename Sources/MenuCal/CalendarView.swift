@@ -5,6 +5,7 @@ import SwiftUI
 struct CalendarView: View {
     @EnvironmentObject private var ticker: Ticker
     @EnvironmentObject private var eventService: EventService
+    @EnvironmentObject private var settings: AppSettings
     @State private var displayedMonth: Date = CalendarView.firstOfMonth(Date())
     @State private var selectedDay: DayKey?
 
@@ -47,9 +48,13 @@ struct CalendarView: View {
             detailArea(holidays: holidays, todayKey: todayKey)
         }
         .onAppear {
-            // 팝오버를 다시 열면 항상 현재 달 + 오늘 선택으로 복귀
-            displayedMonth = Self.firstOfMonth(ticker.now)
-            selectedDay = DayKey(date: ticker.now, calendar: Self.cal)
+            // 최초 표시 때만 오늘로 세팅 (마지막 본 달 유지 모드여도 첫 오픈엔 기준점 필요).
+            // 재오픈은 지속 호스팅 뷰라 onAppear가 다시 안 뜨므로 아래 알림으로 처리한다.
+            if selectedDay == nil { resetToToday() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .menuCalPopoverDidOpen)) { _ in
+            // 팝오버가 열릴 때마다: 설정이 "항상 오늘"이면 오늘 달로 복귀, 아니면 보던 달 유지
+            if settings.calendarOpensToToday { resetToToday() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .menuCalMoveMonth)) { note in
             // ← / → 키로 달 이동 (StatusItemController의 keyDown 모니터가 발신)
@@ -63,10 +68,7 @@ struct CalendarView: View {
                 .font(.system(size: 14, weight: .semibold))
             Spacer()
             monthButton("chevron.left", delta: -1, help: "이전 달")
-            Button("오늘") {
-                displayedMonth = Self.firstOfMonth(ticker.now)
-                selectedDay = DayKey(date: ticker.now, calendar: Self.cal)
-            }
+            Button("오늘") { resetToToday() }
             .buttonStyle(.plain)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -99,8 +101,17 @@ struct CalendarView: View {
             let isToday = key == todayKey
             let isSelected = key == selectedDay
             let dayEvents = eventService.byDay[key] ?? []
+            let lunar = Self.lunarLabel(for: key)
 
             VStack(spacing: 1) {
+                // 이벤트 점 (캘린더 색상, 최대 3개) — 날짜 위에 두어 눈에 잘 띄게, 없어도 자리 유지
+                HStack(spacing: 2) {
+                    ForEach(Array(dayEvents.prefix(3).enumerated()), id: \.offset) { _, ev in
+                        Circle().fill(ev.color).frame(width: 3.5, height: 3.5)
+                    }
+                }
+                .frame(height: 4)
+
                 ZStack {
                     if isToday {
                         Circle().fill(Color.accentColor).frame(width: 21, height: 21)
@@ -115,20 +126,21 @@ struct CalendarView: View {
                 }
                 .frame(height: 22)
 
-                // 이벤트 점 (캘린더 색상, 최대 3개) — 없어도 자리 유지
-                HStack(spacing: 2) {
-                    ForEach(Array(dayEvents.prefix(3).enumerated()), id: \.offset) { _, ev in
-                        Circle().fill(ev.color).frame(width: 3.5, height: 3.5)
-                    }
-                }
-                .frame(height: 4)
+                // 음력 (5의 배수일만) — 작고 흐리게, 날짜에 바짝 붙여서, 없어도 자리 유지
+                Text(lunar ?? " ")
+                    .font(.system(size: 7))
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .frame(height: 8)
+                    .padding(.top, -3)
             }
-            .frame(width: 32, height: 30)
+            .frame(width: 32, height: 38)
             .contentShape(Rectangle()) // 빈 픽셀까지 클릭/호버 히트 영역
             .onTapGesture { selectedDay = key }
             .help(holidayName ?? (dayEvents.isEmpty ? "" : "\(dayEvents.count)개 일정"))
         } else {
-            Color.clear.frame(width: 32, height: 30)
+            Color.clear.frame(width: 32, height: 38)
         }
     }
 
@@ -211,6 +223,21 @@ struct CalendarView: View {
     private func moveMonth(_ delta: Int) {
         // 항상 1일 기준으로 이동 → 31일 클램핑 문제 없음
         displayedMonth = Self.cal.date(byAdding: .month, value: delta, to: displayedMonth) ?? displayedMonth
+        // 이동한 달 주변 이벤트를 다시 로드해 점/상세가 항상 뜨도록
+        eventService.focusCalendar(on: displayedMonth)
+    }
+
+    /// 현재 달 + 오늘 선택으로 복귀하고 그 달 이벤트를 로드
+    private func resetToToday() {
+        displayedMonth = Self.firstOfMonth(ticker.now)
+        selectedDay = DayKey(date: ticker.now, calendar: Self.cal)
+        eventService.focusCalendar(on: displayedMonth)
+    }
+
+    /// 음력 "월.일" (윤달은 "윤" 접두). 5의 배수일(5·10·15·20·25·30)만 반환, 그 외엔 nil.
+    private static func lunarLabel(for key: DayKey) -> String? {
+        guard let l = HolidayProvider.lunar(for: key), l.day % 5 == 0 else { return nil }
+        return "\(l.isLeap ? "윤" : "")\(l.month).\(l.day)"
     }
 
     private static func monthCells(for monthDate: Date, calendar: Calendar) -> [Int?] {

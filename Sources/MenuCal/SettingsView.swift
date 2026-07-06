@@ -144,6 +144,13 @@ struct SettingsView: View {
             Text("이벤트가 있으면 메뉴바에 🔔 표시 → 팝오버를 열면\n사라지고, 다음날 0시에 다시 나타납니다.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+
+            Picker("달력 열 때", selection: $settings.calendarOpensToToday) {
+                Text("항상 오늘 달").tag(true)
+                Text("마지막 본 달").tag(false)
+            }
+            .pickerStyle(.radioGroup)
+            .font(.caption)
         }
     }
 

@@ -50,6 +50,21 @@ enum HolidayProvider {
         return computed
     }
 
+    private static var lunarCache: [DayKey: (month: Int, day: Int, isLeap: Bool)] = [:]
+
+    /// 주어진 양력 날짜의 음력 월/일 (달력 셀의 흐린 음력 표시용).
+    /// 정오(Asia/Seoul) 기준으로 변환해 자정 경계 오차를 피한다.
+    static func lunar(for key: DayKey) -> (month: Int, day: Int, isLeap: Bool)? {
+        if let cached = lunarCache[key] { return cached }
+        guard let date = greg.date(from: DateComponents(
+            year: key.year, month: key.month, day: key.day, hour: 12)) else { return nil }
+        let c = dangi.dateComponents([.month, .day], from: date)
+        guard let m = c.month, let d = c.day else { return nil }
+        let info = (month: m, day: d, isLeap: c.isLeapMonth ?? false)
+        lunarCache[key] = info
+        return info
+    }
+
     /// 디버그 CLI 출력용 요일 기호
     static func weekdaySymbol(of key: DayKey) -> String {
         guard let date = greg.date(from: DateComponents(year: key.year, month: key.month, day: key.day)) else { return "?" }
