@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    /// 달력에서 ← / → 키로 달 이동 (delta: Int in userInfo)
+    static let menuCalMoveMonth = Notification.Name("MenuCalMoveMonth")
+}
+
 /// 두 줄 모드용 메뉴바 라벨 데이터
 final class StatusLabelModel: ObservableObject {
     @Published var line1 = ""
@@ -38,6 +43,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private let eventService: EventService
     private let labelModel = StatusLabelModel()
     private var twoLineHosting: NSHostingView<StatusItemLabel>?
+    private var keyMonitor: Any?
     private var timer: Timer?
     private var lastPopoverClose = Date.distantPast
     private var lastFormat: String
@@ -79,6 +85,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
         tick()
         startTimer()
+        installKeyMonitor()
 
         // 잠자기 해제 → 타이머 재정렬 + 즉시 갱신
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -197,6 +204,32 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         clockNeedsRealign()
     }
 
+    // MARK: - 키보드 (달력 ← / → 월 이동)
+
+    /// 팝오버가 열려 있을 때 ← / → 키를 가로채 달력의 달을 이동시킨다.
+    /// 한 번만 설치하고 `popover.isShown`으로 게이팅 → 닫혀 있으면 그냥 통과.
+    private func installKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.popover.isShown else { return event }
+            // ⌘/⌥/⌃/⇧ 수식키가 있으면 (예: ⌘Q) 가로채지 않음.
+            // 방향키는 .function/.numericPad 플래그를 항상 달고 오므로 그건 무시해야 한다.
+            let modifiers: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
+            guard event.modifierFlags.intersection(modifiers).isEmpty else { return event }
+            // 텍스트 편집 중이면 커서 이동에 양보 (설정 화면 입력 필드)
+            if event.window?.firstResponder is NSTextView { return event }
+            switch event.keyCode {
+            case 123: // ←
+                NotificationCenter.default.post(name: .menuCalMoveMonth, object: nil, userInfo: ["delta": -1])
+                return nil // 이벤트 소비 → 비프음 방지
+            case 124: // →
+                NotificationCenter.default.post(name: .menuCalMoveMonth, object: nil, userInfo: ["delta": 1])
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
     // MARK: - 팝오버
 
     @objc private func togglePopover(_ sender: Any?) {
@@ -208,6 +241,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             eventService.refresh() // 열 때 최신 이벤트로
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             NSApp.activate() // 액세서리 앱: 검색 TextField가 키보드 포커스를 받도록
+            // 팝오버 창을 key로 만들어 ← / → 등 키 입력을 바로 받도록 한다
+            // (TextField가 없는 달력만 있을 땐 자동으로 key가 되지 않음)
+            popover.contentViewController?.view.window?.makeKey()
 
             // 팝오버를 열어 이벤트를 봤으면 넛지 확인 처리 → 다음 자정에 리셋
             if nudgeActive(now: Date()) {

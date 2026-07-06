@@ -51,6 +51,10 @@ struct CalendarView: View {
             displayedMonth = Self.firstOfMonth(ticker.now)
             selectedDay = DayKey(date: ticker.now, calendar: Self.cal)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .menuCalMoveMonth)) { note in
+            // ← / → 키로 달 이동 (StatusItemController의 keyDown 모니터가 발신)
+            moveMonth(note.userInfo?["delta"] as? Int ?? 0)
+        }
     }
 
     private var header: some View {
@@ -58,11 +62,7 @@ struct CalendarView: View {
             Text(ClockFormatter.monthTitle(displayedMonth))
                 .font(.system(size: 14, weight: .semibold))
             Spacer()
-            Button { moveMonth(-1) } label: {
-                Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            monthButton("chevron.left", delta: -1, help: "이전 달")
             Button("오늘") {
                 displayedMonth = Self.firstOfMonth(ticker.now)
                 selectedDay = DayKey(date: ticker.now, calendar: Self.cal)
@@ -70,13 +70,22 @@ struct CalendarView: View {
             .buttonStyle(.plain)
             .font(.caption)
             .foregroundStyle(.secondary)
-            Button { moveMonth(1) } label: {
-                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            monthButton("chevron.right", delta: 1, help: "다음 달")
         }
         .padding(.horizontal, 2)
+    }
+
+    /// 이전/다음 달 이동 버튼 — 넉넉한 히트 영역으로 클릭하기 쉽게.
+    private func monthButton(_ systemName: String, delta: Int, help: String) -> some View {
+        Button { moveMonth(delta) } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 30, height: 26)   // 넉넉한 클릭 히트 영역
+                .contentShape(Rectangle())       // 빈 픽셀까지 클릭 가능
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .help(help)
     }
 
     // MARK: - 날짜 셀
