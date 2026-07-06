@@ -1,3 +1,5 @@
+<img width="268" height="536" alt="image" src="https://github.com/user-attachments/assets/f267c5b0-2025-4ea6-91b5-7c1164332736" />
+
 # MenuCal
 
 macOS 26이 메뉴막대 기본 시계의 커스텀 날짜 형식(`DateFormat`)을 무시하게 되면서 직접 만든 **메뉴막대 시계 / 달력 / 세계시계 앱**.
