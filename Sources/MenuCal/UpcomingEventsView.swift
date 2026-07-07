@@ -8,6 +8,12 @@ struct UpcomingEventsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            // 지난 일정이 있을 때만 나타나는 "최근 이벤트" 섹션 (넛지와 무관)
+            if !eventService.recent.isEmpty {
+                recentSection
+                Divider().opacity(0.5)
+            }
+
             HStack {
                 Text("다가오는 이벤트")
                     .font(.caption)
@@ -53,6 +59,41 @@ struct UpcomingEventsView: View {
         }
     }
 
+    /// "최근 이벤트": 지난 일정을 흐리게, 최신순 최대 6줄 + "외 N건"
+    private var recentSection: some View {
+        let todayKey = DayKey(date: ticker.now, calendar: Calendar.current)
+        let rows = eventService.recent.prefix(6)
+
+        return VStack(alignment: .leading, spacing: 3) {
+            Text("최근 이벤트")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(Array(rows)) { ev in
+                HStack(spacing: 6) {
+                    Circle().fill(ev.color.opacity(0.6)).frame(width: 5, height: 5)
+                    Text(relativeDayLabel(ev.start, todayKey: todayKey))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 44, alignment: .leading)
+                    Text(ev.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary) // 지난 일정은 흐리게
+                        .lineLimit(1)
+                    Spacer()
+                    Text(ev.isAllDay ? "" : ClockFormatter.cityTimeString(ev.start, timeZone: .current))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
+            }
+            if eventService.recent.count > 6 {
+                Text("외 \(eventService.recent.count - 6)건")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
     private var eventList: some View {
         let todayKey = DayKey(date: ticker.now, calendar: Calendar.current)
         let rows = eventService.upcoming.prefix(12)
@@ -81,14 +122,19 @@ struct UpcomingEventsView: View {
         .frame(maxHeight: 110)
     }
 
-    /// "오늘" / "내일" / "7/8(수)"
+    /// "어제" / "오늘" / "내일" / "7/8(수)"
     private func relativeDayLabel(_ date: Date, todayKey: DayKey) -> String {
         let cal = Calendar.current
         let key = DayKey(date: date, calendar: cal)
         if key == todayKey { return "오늘" }
-        if let tomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: ticker.now)),
+        let today0 = cal.startOfDay(for: ticker.now)
+        if let tomorrow = cal.date(byAdding: .day, value: 1, to: today0),
            key == DayKey(date: tomorrow, calendar: cal) {
             return "내일"
+        }
+        if let yesterday = cal.date(byAdding: .day, value: -1, to: today0),
+           key == DayKey(date: yesterday, calendar: cal) {
+            return "어제"
         }
         let symbols = ["일", "월", "화", "수", "목", "금", "토"]
         let weekday = symbols[cal.component(.weekday, from: date) - 1]

@@ -23,16 +23,19 @@ final class EventService: ObservableObject {
 
     @Published private(set) var authState: AuthState = .notDetermined
     @Published private(set) var upcoming: [DayEvent] = []       // lookahead 윈도우 내 전체, 시간순 — "다가오는 이벤트"용
+    @Published private(set) var recent: [DayEvent] = []         // [오늘-lookbackDays, 오늘 0시) 지난 일정, 최신순 — "최근 이벤트"용
     @Published private(set) var byDay: [DayKey: [DayEvent]] = [:] // 달력 점/날짜 상세용 — lookahead와 독립, 과거·먼 미래도 포함
 
     private let store = EKEventStore()
     private var lookaheadDays: Int
+    private var lookbackDays: Int
     private let cal = Calendar.current
     /// byDay를 읽을 기준 달(달력이 현재 표시 중인 달). 이 달 앞뒤로 넉넉히 로드한다.
     private var calendarAnchor = Calendar.current.startOfDay(for: Date())
 
-    init(lookaheadDays: Int) {
+    init(lookaheadDays: Int, lookbackDays: Int) {
         self.lookaheadDays = lookaheadDays
+        self.lookbackDays = lookbackDays
         refreshAuthState()
         if authState == .authorized { refresh() }
 
@@ -67,16 +70,22 @@ final class EventService: ObservableObject {
 
     func setLookahead(_ days: Int) {
         lookaheadDays = max(1, days)
-        refresh()
+        refreshUpcoming()
+    }
+
+    func setLookback(_ days: Int) {
+        lookbackDays = max(0, days)
+        refreshRecent()
     }
 
     @objc private func storeChanged() {
         refresh()
     }
 
-    /// "다가오는 이벤트" 목록과 달력 점/상세를 모두 다시 읽는다.
+    /// "다가오는 이벤트"·"최근 이벤트" 목록과 달력 점/상세를 모두 다시 읽는다.
     func refresh() {
         refreshUpcoming()
+        refreshRecent()
         refreshCalendar()
     }
 
@@ -96,6 +105,20 @@ final class EventService: ObservableObject {
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
         upcoming = store.events(matching: predicate)
             .sorted { $0.startDate < $1.startDate }
+            .map(Self.snapshot)
+    }
+
+    /// [오늘 0시 - lookbackDays, 오늘 0시) 윈도우 — "최근 이벤트"(지난 일정) 목록.
+    /// 오늘 일정은 upcoming에 있으므로 겹치지 않게 오늘 0시 직전까지만, 최신순 정렬.
+    private func refreshRecent() {
+        guard authState == .authorized, lookbackDays > 0 else { recent = []; return }
+        let end = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .day, value: -lookbackDays, to: end) else { return }
+
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        recent = store.events(matching: predicate)
+            .filter { $0.startDate < end }          // 오늘 시작 일정은 제외 (upcoming 몫)
+            .sorted { $0.startDate > $1.startDate }  // 가장 최근 지난 일정이 위로
             .map(Self.snapshot)
     }
 

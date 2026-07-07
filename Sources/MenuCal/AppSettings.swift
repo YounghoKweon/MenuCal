@@ -28,6 +28,11 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(lookaheadDays, forKey: "lookaheadDays") }
     }
 
+    /// 최근(지난) 이벤트 표시 기간 (일) — "최근 이벤트" 섹션용
+    @Published var lookbackDays: Int {
+        didSet { UserDefaults.standard.set(lookbackDays, forKey: "lookbackDays") }
+    }
+
     /// 팝오버를 열 때 달력을 항상 오늘 달로 되돌릴지 (false면 마지막으로 보던 달 유지)
     @Published var calendarOpensToToday: Bool {
         didSet { UserDefaults.standard.set(calendarOpensToToday, forKey: "calendarOpensToToday") }
@@ -45,6 +50,8 @@ final class AppSettings: ObservableObject {
         menuBarFormatLine2 = d.string(forKey: "menuBarFormatLine2") ?? Self.defaultLine2
         let days = d.integer(forKey: "lookaheadDays")
         lookaheadDays = days == 0 ? 7 : days
+        let back = d.integer(forKey: "lookbackDays")
+        lookbackDays = back == 0 ? 3 : back
         // 미설정 시 기본값 = 항상 오늘 (기존 동작 유지)
         calendarOpensToToday = d.object(forKey: "calendarOpensToToday") as? Bool ?? true
         lastNudgeAckDay = d.string(forKey: "lastNudgeAckDay") ?? ""

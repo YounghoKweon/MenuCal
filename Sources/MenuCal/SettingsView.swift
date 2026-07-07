@@ -141,6 +141,12 @@ struct SettingsView: View {
                 .onChange(of: settings.lookaheadDays) { _, days in
                     eventService.setLookahead(days)
                 }
+            Stepper("최근 이벤트 표시 기간: \(settings.lookbackDays)일",
+                    value: $settings.lookbackDays, in: 1...30)
+                .font(.caption)
+                .onChange(of: settings.lookbackDays) { _, days in
+                    eventService.setLookback(days)
+                }
             Text("이벤트가 있으면 메뉴바에 🔔 표시 → 팝오버를 열면\n사라지고, 다음날 0시에 다시 나타납니다.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)

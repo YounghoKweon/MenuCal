@@ -54,7 +54,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private var lastDay: DayKey
 
     override init() {
-        eventService = EventService(lookaheadDays: settingsLookahead())
+        eventService = EventService(lookaheadDays: settingsLookahead(), lookbackDays: settingsLookback())
         lastFormat = ""
         lastFormatLine2 = ""
         lastDay = DayKey(date: Date(), calendar: Calendar.current)
@@ -267,4 +267,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 private func settingsLookahead() -> Int {
     let days = UserDefaults.standard.integer(forKey: "lookaheadDays")
     return days == 0 ? 7 : days
+}
+
+/// 위와 같은 이유의 lookback 헬퍼
+private func settingsLookback() -> Int {
+    let back = UserDefaults.standard.integer(forKey: "lookbackDays")
+    return back == 0 ? 3 : back
 }
