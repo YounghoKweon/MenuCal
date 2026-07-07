@@ -77,7 +77,7 @@ struct UpcomingEventsView: View {
                         .frame(width: 44, alignment: .leading)
                     Text(ev.title)
                         .font(.caption)
-                        .foregroundStyle(.secondary) // 지난 일정은 흐리게
+                        .foregroundStyle(.tertiary) // 지난 일정은 제목도 흐리게
                         .lineLimit(1)
                     Spacer()
                     Text(ev.isAllDay ? "" : ClockFormatter.cityTimeString(ev.start, timeZone: .current))
