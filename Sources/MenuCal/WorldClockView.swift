@@ -42,7 +42,7 @@ struct WorldClockView: View {
 
             if let tz = city.timeZone,
                let dst = ClockFormatter.dstDescription(tz, now: ticker.now) {
-                Text("DST")
+                Text("서머타임")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.orange)
                     .padding(.horizontal, 4)
