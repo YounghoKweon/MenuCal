@@ -207,9 +207,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         clockNeedsRealign()
     }
 
-    // MARK: - 키보드 (달력 ← / → 월 이동)
+    // MARK: - 키보드 (달력 ← ↑ / → ↓ 월 이동)
 
-    /// 팝오버가 열려 있을 때 ← / → 키를 가로채 달력의 달을 이동시킨다.
+    /// 팝오버가 열려 있을 때 ← ↑ / → ↓ 키를 가로채 달력의 달을 이동시킨다.
     /// 한 번만 설치하고 `popover.isShown`으로 게이팅 → 닫혀 있으면 그냥 통과.
     private func installKeyMonitor() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -221,10 +221,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             // 텍스트 편집 중이면 커서 이동에 양보 (설정 화면 입력 필드)
             if event.window?.firstResponder is NSTextView { return event }
             switch event.keyCode {
-            case 123: // ←
+            case 123, 126: // ← / ↑
                 NotificationCenter.default.post(name: .menuCalMoveMonth, object: nil, userInfo: ["delta": -1])
                 return nil // 이벤트 소비 → 비프음 방지
-            case 124: // →
+            case 124, 125: // → / ↓
                 NotificationCenter.default.post(name: .menuCalMoveMonth, object: nil, userInfo: ["delta": 1])
                 return nil
             default:

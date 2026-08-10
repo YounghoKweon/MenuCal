@@ -57,7 +57,7 @@ struct CalendarView: View {
             if settings.calendarOpensToToday { resetToToday() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .menuCalMoveMonth)) { note in
-            // ← / → 키로 달 이동 (StatusItemController의 keyDown 모니터가 발신)
+            // ← ↑ / → ↓ 키로 달 이동 (StatusItemController의 keyDown 모니터가 발신)
             moveMonth(note.userInfo?["delta"] as? Int ?? 0)
         }
     }
