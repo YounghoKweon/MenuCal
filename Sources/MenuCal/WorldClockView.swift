@@ -40,6 +40,17 @@ struct WorldClockView: View {
                     .background(Capsule().fill(Color.secondary.opacity(0.15)))
             }
 
+            if let tz = city.timeZone,
+               let dst = ClockFormatter.dstDescription(tz, now: ticker.now) {
+                Text("DST")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.orange.opacity(0.15)))
+                    .help(dst)
+            }
+
             Spacer()
 
             if let tz = city.timeZone {

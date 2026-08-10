@@ -3,6 +3,7 @@ import AppKit
 // MARK: - 디버그 CLI (터미널에서 동작 검증용, 앱 실행과 무관)
 // .build/debug/MenuCal --print-holidays 2026  → 해당 연도 공휴일 목록 출력 후 종료
 // .build/debug/MenuCal --print-title          → 현재 메뉴바 타이틀 문자열 출력 후 종료
+// .build/debug/MenuCal --print-clocks         → 프리셋 도시별 현재 시각 / 날짜 배지 / 서머타임 출력 후 종료
 let cliArgs = CommandLine.arguments
 if let idx = cliArgs.firstIndex(of: "--print-holidays"), idx + 1 < cliArgs.count, let year = Int(cliArgs[idx + 1]) {
     let holidays = HolidayProvider.holidays(inYear: year)
@@ -15,6 +16,16 @@ if let idx = cliArgs.firstIndex(of: "--print-holidays"), idx + 1 < cliArgs.count
 }
 if cliArgs.contains("--print-title") {
     print(ClockFormatter.menuBarTitle(Date()))
+    exit(0)
+}
+if cliArgs.contains("--print-clocks") {
+    let now = Date()
+    for city in CityStore.presets {
+        guard let tz = city.timeZone else { continue }
+        let day = ClockFormatter.dayOffsetLabel(ClockFormatter.dayOffset(remote: tz, now: now)) ?? ""
+        let dst = ClockFormatter.dstDescription(tz, now: now) ?? ""
+        print("\(city.name)\t\(ClockFormatter.cityClockString(now, timeZone: tz))\t\(day)\t\(dst)")
+    }
     exit(0)
 }
 

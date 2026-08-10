@@ -121,4 +121,18 @@ enum ClockFormatter {
         default: return String(format: "%+d일", offset) // 한국 기준 도달 불가지만 안전망
         }
     }
+
+    /// 서머타임(일광절약시간) 적용 중이면 설명 문구, 아니면 nil.
+    /// 앞당기는 폭은 대개 1시간이지만 30분인 곳(Lord Howe)도 있어 실제 값을 읽는다.
+    static func dstDescription(_ tz: TimeZone, now: Date) -> String? {
+        guard tz.isDaylightSavingTime(for: now) else { return nil }
+        let minutes = Int(tz.daylightSavingTimeOffset(for: now).rounded()) / 60
+        guard minutes > 0 else { return "서머타임 적용 중" }
+        let amount = switch (minutes / 60, minutes % 60) {
+        case (0, let m): "\(m)분"
+        case (let h, 0): "\(h)시간"
+        case (let h, let m): "\(h)시간 \(m)분"
+        }
+        return "서머타임 적용 중 (+\(amount))"
+    }
 }
