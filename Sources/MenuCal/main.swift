@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+// 툴팁 표시 지연 단축. AppKit 기본값은 2초대라 팝오버를 잠깐 띄웠다 닫는 사용 패턴에선 사실상 안 뜬다.
+// register라 사용자가 defaults로 덮어쓸 수 있고, 이 앱 안에서만 적용된다.
+UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 500])
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
