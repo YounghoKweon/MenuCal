@@ -1,5 +1,11 @@
 import SwiftUI
 
+/// 달력 한 칸. `isCurrentMonth`가 false면 첫 주/마지막 주 빈칸을 메운 이전·다음 달 날짜다.
+nonisolated struct GridDay: Hashable {
+    let key: DayKey
+    let isCurrentMonth: Bool
+}
+
 /// 월 달력 그리드: ◀ ▶ 월 이동, 오늘 버튼, 일=빨강/토=파랑, 오늘 하이라이트,
 /// 공휴일 빨간날 + 이벤트 점, 날짜 클릭 시 아래 상세 영역에 공휴일 이름/일정 표시.
 struct CalendarView: View {
@@ -9,7 +15,7 @@ struct CalendarView: View {
     @State private var displayedMonth: Date = CalendarView.firstOfMonth(Date())
     @State private var selectedDay: DayKey?
 
-    private static let cal: Calendar = {
+    static let cal: Calendar = {
         var c = Calendar(identifier: .gregorian)
         c.locale = Locale(identifier: "ko_KR")
         c.firstWeekday = 1 // 일요일 시작
@@ -19,11 +25,10 @@ struct CalendarView: View {
     private static let columns = Array(repeating: GridItem(.fixed(32), spacing: 0), count: 7)
 
     var body: some View {
-        let year = Self.cal.component(.year, from: displayedMonth)
-        let month = Self.cal.component(.month, from: displayedMonth)
-        let holidays = HolidayProvider.holidays(inYear: year)
         let todayKey = DayKey(date: ticker.now, calendar: Self.cal)
-        let cells = Self.monthCells(for: displayedMonth, calendar: Self.cal)
+        let cells = Self.monthCells(for: displayedMonth, calendar: Self.cal,
+                                    fillAdjacent: settings.fillAdjacentMonths)
+        let holidays = Self.holidays(covering: cells, selected: selectedDay)
 
         VStack(spacing: 6) {
             header
@@ -39,8 +44,7 @@ struct CalendarView: View {
                 }
                 // 항상 42셀(6주) — 월 이동 시 팝오버 높이가 튀지 않게
                 ForEach(0..<42, id: \.self) { i in
-                    dayCell(day: cells[i], column: i % 7,
-                            year: year, month: month,
+                    dayCell(cell: cells[i], column: i % 7,
                             holidays: holidays, todayKey: todayKey)
                 }
             }
@@ -93,10 +97,11 @@ struct CalendarView: View {
     // MARK: - 날짜 셀
 
     @ViewBuilder
-    private func dayCell(day: Int?, column: Int, year: Int, month: Int,
+    private func dayCell(cell: GridDay?, column: Int,
                          holidays: [DayKey: String], todayKey: DayKey) -> some View {
-        if let day {
-            let key = DayKey(year: year, month: month, day: day)
+        if let cell {
+            let key = cell.key
+            let day = key.day
             let holidayName = holidays[key]
             let isToday = key == todayKey
             let isSelected = key == selectedDay
@@ -122,7 +127,8 @@ struct CalendarView: View {
                     Text("\(day)")
                         .font(.system(size: 12))
                         .monospacedDigit()
-                        .foregroundStyle(textColor(isToday: isToday, isHoliday: holidayName != nil, column: column))
+                        .foregroundStyle(textColor(isToday: isToday, isHoliday: holidayName != nil,
+                                                   column: column, isCurrentMonth: cell.isCurrentMonth))
                 }
                 .frame(height: 22)
 
@@ -144,8 +150,9 @@ struct CalendarView: View {
         }
     }
 
-    private func textColor(isToday: Bool, isHoliday: Bool, column: Int) -> Color {
+    private func textColor(isToday: Bool, isHoliday: Bool, column: Int, isCurrentMonth: Bool) -> Color {
         if isToday { return .white }
+        if !isCurrentMonth { return .primary.opacity(0.25) } // 이전/다음 달 채움 칸은 짙은 회색
         if isHoliday || column == 0 { return .red }
         if column == 6 { return .blue }
         return .primary
@@ -240,16 +247,56 @@ struct CalendarView: View {
         return "\(l.isLeap ? "윤" : "")\(l.month).\(l.day)"
     }
 
-    private static func monthCells(for monthDate: Date, calendar: Calendar) -> [Int?] {
+    /// 6주(42칸) 격자. `fillAdjacent`면 1일이 있는 행의 앞 빈칸을 이전 달 말일들로,
+    /// 말일이 있는 행의 뒤 빈칸을 다음 달 1일부터로 메운다. 그 뒤 남는 행은 계속 비워 둔다.
+    static func monthCells(for monthDate: Date, calendar: Calendar, fillAdjacent: Bool) -> [GridDay?] {
         guard let interval = calendar.dateInterval(of: .month, for: monthDate),
               let dayRange = calendar.range(of: .day, in: .month, for: interval.start) else {
             return Array(repeating: nil, count: 42)
         }
-        let firstWeekday = calendar.component(.weekday, from: interval.start) // 1=일 ... 7=토
+        let first = interval.start
+        let year = calendar.component(.year, from: first)
+        let month = calendar.component(.month, from: first)
+        let firstWeekday = calendar.component(.weekday, from: first) // 1=일 ... 7=토
         let blanks = (firstWeekday - calendar.firstWeekday + 7) % 7
-        var cells: [Int?] = Array(repeating: nil, count: blanks)
-        cells += dayRange.map { Optional($0) }
-        cells += Array(repeating: nil, count: 42 - cells.count)
+
+        var cells: [GridDay?] = Array(repeating: nil, count: blanks)
+        cells += dayRange.map { GridDay(key: DayKey(year: year, month: month, day: $0), isCurrentMonth: true) }
+        let filled = cells.count
+        let lastRowEnd = (filled + 6) / 7 * 7 // 말일이 있는 행의 끝
+        cells += Array(repeating: nil, count: 42 - filled)
+        guard fillAdjacent else { return cells }
+
+        if blanks > 0,
+           let prev = calendar.date(byAdding: .month, value: -1, to: first),
+           let prevRange = calendar.range(of: .day, in: .month, for: prev) {
+            let py = calendar.component(.year, from: prev)
+            let pm = calendar.component(.month, from: prev)
+            for i in 0..<blanks {
+                cells[i] = GridDay(key: DayKey(year: py, month: pm, day: prevRange.upperBound - blanks + i),
+                                   isCurrentMonth: false)
+            }
+        }
+        if lastRowEnd > filled, let next = calendar.date(byAdding: .month, value: 1, to: first) {
+            let ny = calendar.component(.year, from: next)
+            let nm = calendar.component(.month, from: next)
+            for i in filled..<lastRowEnd {
+                cells[i] = GridDay(key: DayKey(year: ny, month: nm, day: i - filled + 1),
+                                   isCurrentMonth: false)
+            }
+        }
         return cells
+    }
+
+    /// 격자에 걸친 연도(12월↔1월 채움이면 두 해) + 선택 날짜의 연도까지 공휴일을 합친다.
+    private static func holidays(covering cells: [GridDay?], selected: DayKey?) -> [DayKey: String] {
+        var years = Set(cells.compactMap { $0?.key.year })
+        if let selected { years.insert(selected.year) }
+        guard years.count > 1 else {
+            return years.first.map { HolidayProvider.holidays(inYear: $0) } ?? [:]
+        }
+        var merged: [DayKey: String] = [:]
+        for y in years { merged.merge(HolidayProvider.holidays(inYear: y)) { a, _ in a } }
+        return merged
     }
 }

@@ -157,6 +157,13 @@ struct SettingsView: View {
             }
             .pickerStyle(.radioGroup)
             .font(.caption)
+
+            Toggle("이전/이후 날짜 채움", isOn: $settings.fillAdjacentMonths)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+            Text("첫 주/마지막 주의 빈칸을 이전·다음 달 날짜로 흐리게 채웁니다.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 

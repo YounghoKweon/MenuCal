@@ -38,6 +38,11 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(calendarOpensToToday, forKey: "calendarOpensToToday") }
     }
 
+    /// 달력 첫 주/마지막 주의 빈칸을 이전·다음 달 날짜로 채울지
+    @Published var fillAdjacentMonths: Bool {
+        didSet { UserDefaults.standard.set(fillAdjacentMonths, forKey: "fillAdjacentMonths") }
+    }
+
     /// 넛지를 마지막으로 확인한 날 ("yyyy-MM-dd"). 자정이 지나면 값이 달라져 넛지가 되살아난다.
     @Published var lastNudgeAckDay: String {
         didSet { UserDefaults.standard.set(lastNudgeAckDay, forKey: "lastNudgeAckDay") }
@@ -54,6 +59,7 @@ final class AppSettings: ObservableObject {
         lookbackDays = back == 0 ? 3 : back
         // 미설정 시 기본값 = 항상 오늘 (기존 동작 유지)
         calendarOpensToToday = d.object(forKey: "calendarOpensToToday") as? Bool ?? true
+        fillAdjacentMonths = d.object(forKey: "fillAdjacentMonths") as? Bool ?? true
         lastNudgeAckDay = d.string(forKey: "lastNudgeAckDay") ?? ""
     }
 
