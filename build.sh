@@ -33,6 +33,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>다가오는 이벤트(생일·기념일 등)를 달력과 메뉴바에 표시하기 위해 캘린더 접근이 필요합니다.</string>
+    <key>NSContactsUsageDescription</key>
+    <string>연락처에 등록한 결혼기념일 같은 날짜를 달력과 다가오는 이벤트에 표시하기 위해 연락처 접근이 필요합니다.</string>
 </dict>
 </plist>
 PLIST

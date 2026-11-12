@@ -1,3 +1,4 @@
+import Contacts
 import EventKit
 import SwiftUI
 import Combine
@@ -38,6 +39,9 @@ final class EventService: ObservableObject {
     @Published private(set) var byDay: [DayKey: [DayEvent]] = [:] // 달력 점/날짜 상세용 — lookahead와 독립, 과거·먼 미래도 포함
 
     private let store = EKEventStore()
+    private let contactStore = CNContactStore()
+    /// 연락처의 날짜 항목(결혼기념일 등). refresh 때마다 다시 읽는다.
+    private var contactDates: [ContactDate] = []
     private var lookaheadDays: Int
     private var lookbackDays: Int
     private let cal = Calendar.current
@@ -54,6 +58,9 @@ final class EventService: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(storeChanged),
             name: .EKEventStoreChanged, object: store)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(storeChanged),
+            name: .CNContactStoreDidChange, object: nil)
     }
 
     var hasUpcoming: Bool { !upcoming.isEmpty }
@@ -95,9 +102,24 @@ final class EventService: ObservableObject {
 
     /// "다가오는 이벤트"·"최근 이벤트" 목록과 달력 점/상세를 모두 다시 읽는다.
     func refresh() {
+        loadContactDates()
         refreshUpcoming()
         refreshRecent()
         refreshCalendar()
+    }
+
+    /// 연락처 권한이 없으면 처음 한 번 요청하고, 허용되면 다시 refresh한다.
+    private func loadContactDates() {
+        switch CNContactStore.authorizationStatus(for: .contacts) {
+        case .authorized, .limited:
+            contactDates = ContactDate.load(from: contactStore)
+        case .notDetermined:
+            Task {
+                if (try? await contactStore.requestAccess(for: .contacts)) == true { refresh() }
+            }
+        default:
+            contactDates = []
+        }
     }
 
     /// 달력이 표시하는 달이 바뀌면 호출 — 그 달 주변 이벤트를 다시 읽어 점/상세를 채운다.
@@ -114,9 +136,9 @@ final class EventService: ObservableObject {
         guard let end = cal.date(byAdding: .day, value: lookaheadDays, to: start) else { return }
 
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
-        upcoming = store.events(matching: predicate)
-            .sorted { $0.startDate < $1.startDate }
-            .map(Self.snapshot)
+        upcoming = (store.events(matching: predicate).map(Self.snapshot)
+                    + contactDates.occurrences(from: start, to: end, calendar: cal))
+            .sorted { $0.start < $1.start }
             .mergingDuplicates()
     }
 
@@ -128,10 +150,11 @@ final class EventService: ObservableObject {
         guard let start = cal.date(byAdding: .day, value: -lookbackDays, to: end) else { return }
 
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
-        recent = store.events(matching: predicate)
-            .filter { $0.startDate < end }          // 오늘 시작 일정은 제외 (upcoming 몫)
-            .sorted { $0.startDate > $1.startDate }  // 가장 최근 지난 일정이 위로
-            .map(Self.snapshot)
+        recent = (store.events(matching: predicate)
+                    .filter { $0.startDate < end }  // 오늘 시작 일정은 제외 (upcoming 몫)
+                    .map(Self.snapshot)
+                  + contactDates.occurrences(from: start, to: end, calendar: cal))
+            .sorted { $0.start > $1.start }  // 가장 최근 지난 일정이 위로
             .mergingDuplicates()
     }
 
@@ -144,8 +167,9 @@ final class EventService: ObservableObject {
 
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
         var grouped: [DayKey: [DayEvent]] = [:]
-        for e in store.events(matching: predicate) {
-            grouped[DayKey(date: e.startDate, calendar: cal), default: []].append(Self.snapshot(e))
+        for e in store.events(matching: predicate).map(Self.snapshot)
+                 + contactDates.occurrences(from: start, to: end, calendar: cal) {
+            grouped[DayKey(date: e.start, calendar: cal), default: []].append(e)
         }
         for k in grouped.keys {
             grouped[k]?.sort { $0.start < $1.start } // 각 날짜 내 시간순
