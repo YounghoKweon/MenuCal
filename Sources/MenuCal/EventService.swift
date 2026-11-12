@@ -12,6 +12,17 @@ nonisolated struct DayEvent: Identifiable {
     let color: Color
 }
 
+extension [DayEvent] {
+    /// 제목과 시작 시각이 같은 일정은 처음 것 하나만 남긴다.
+    /// 연락처 카드가 중복되면 생일 캘린더가 카드마다 일정을 만들고, 그 일정들은 ID가 서로 다르다.
+    nonisolated func mergingDuplicates() -> [DayEvent] {
+        var seen = Set<String>()
+        return filter { e in
+            seen.insert("\(e.title)@\(e.start.timeIntervalSince1970)").inserted
+        }
+    }
+}
+
 /// EventKit 래퍼: macOS 캘린더(구글 계정 연동 포함)에서 이벤트를 읽어온다.
 /// Google 캘린더는 시스템 설정 > 인터넷 계정에 Google 계정을 추가하면 함께 보인다.
 final class EventService: ObservableObject {
@@ -106,6 +117,7 @@ final class EventService: ObservableObject {
         upcoming = store.events(matching: predicate)
             .sorted { $0.startDate < $1.startDate }
             .map(Self.snapshot)
+            .mergingDuplicates()
     }
 
     /// [오늘 0시 - lookbackDays, 오늘 0시) 윈도우 — "최근 이벤트"(지난 일정) 목록.
@@ -120,6 +132,7 @@ final class EventService: ObservableObject {
             .filter { $0.startDate < end }          // 오늘 시작 일정은 제외 (upcoming 몫)
             .sorted { $0.startDate > $1.startDate }  // 가장 최근 지난 일정이 위로
             .map(Self.snapshot)
+            .mergingDuplicates()
     }
 
     /// 표시 중인 달 앞뒤 ±2개월 윈도우 — 달력 점/날짜 상세용.
@@ -136,6 +149,7 @@ final class EventService: ObservableObject {
         }
         for k in grouped.keys {
             grouped[k]?.sort { $0.start < $1.start } // 각 날짜 내 시간순
+            grouped[k] = grouped[k]?.mergingDuplicates()
         }
         byDay = grouped
     }

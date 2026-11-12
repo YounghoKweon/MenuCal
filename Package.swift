@@ -14,6 +14,12 @@ let package = Package(
                 // DateFormatter/ObservableObject 등을 어노테이션 없이 안전하게 쓴다.
                 .defaultIsolation(MainActor.self)
             ]
+        ),
+        .testTarget(
+            name: "MenuCalTests",
+            dependencies: ["MenuCal"],
+            path: "Tests/MenuCalTests",
+            swiftSettings: [.defaultIsolation(MainActor.self)]
         )
     ]
 )
